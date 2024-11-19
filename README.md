@@ -53,9 +53,9 @@ FZ-GPU '23   ---> | predictor ℓ-(1,2,3)D | ---> ( n/a ) ---------> | de-redund
 (Zhang, Tian et al.) --------------------+                         +---------------+
 
                   [ single kernel ]------------------------------------------------+           
-SZp-CUDA/GSZ ---> | predictor ℓ-1D   ---------> ( n/a ) --------->   de-redundancy | -------> ( n/a )
+SZp-CUDA -------> | predictor ℓ-1D   ---------> ( n/a ) --------->   de-redundancy | -------> ( n/a )
 '23, '24          +----------------------------------------------------------------+           
-(Huang et al.)
+(Huang et al., Huang et al.)
 
                   +----------------+            +-----------+      +------------------+       +---------------+
 cuSZ-i '24   ---> | predictor S-3D | ---------> | histogram | ---> | ui2 Huffman enc. | ----> | de-redundancy |
@@ -81,14 +81,15 @@ If you found the whole pipeline is important, please kindly cite using `\cite{ti
 <br>
 
 ```bibtex
-@article{liu_tian_wu2024cuszi,
-     title = {{{\scshape cuSZ}-{\itshape i}: High-ratio scientific lossy compression on
+@inproceedings{liu_tian_wu2024cuszi,
+      title = {{{\scshape cuSZ}-{\itshape i}: High-Ratio scientific lossy compression on
              GPUs with optimized multi-level interpolation}},
-    author = {Jinyang Liu and Jiannan Tian and Shixun Wu and Sheng Di and Boyuan Zhang and Yafan Huang and Kai Zhao and Guanpeng Li and Dingwen Tao and Zizhong Chen and Franck Cappello},
-      year = {2024}, month = {11},
-      note = {Co-first authors: Jinyang Liu, Jiannan Tian, and Shixun Wu},
-       doi = {10.48550/arXiv.2312.05492},
-    series = {SC '24}, address = {Atlanta, GA, USA}}
+     author = {Liu, Jinyang and Tian, Jiannan and Wu, Shixun and Di, Sheng and Zhang, Boyuan and Underwood, Robert and Huang, Yafan and Huang, Jiajun and Zhao, Kai and Li, Guanpeng and Tao, Dingwen and Chen, Zizhong and Cappello, Franck},
+       year = {2024}, month = {11}, isbn = {979-8-3503-5291-7},
+       note = {Co-first authors: Jinyang Liu, Jiannan Tian, and Shixun Wu},
+        url = {https://doi.ieeecomputersociety.org/10.1109/SC41406.2024.00019}, 
+  booktitle = {SC '24: Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
+     series = {SC '24}, address = {Atlanta, GA, USA}}
 
 @inproceedings{tian2020cusz,
       title = {{{\textsc cuSZ}: An efficient GPU-based error-bounded lossy compression framework for scientific data}},
@@ -107,12 +108,10 @@ If you found the whole pipeline is important, please kindly cite using `\cite{ti
      series = {CLUSTER '21}, address = {Portland (virtual event), OR, USA}}
 ```
 
-
-
 <h3 align="center">
 acknowledgements
 </h3>
 
-This R&D is supported by the Exascale Computing Project (ECP), Project Number: 17-SC-20-SC, a collaborative effort of two DOE organizations – the Office of Science and the National Nuclear Security Administration, responsible for the planning and preparation of a capable exascale ecosystem. This repository is based upon work supported by the U.S. Department of Energy, Office of Science, under contract DE-AC02-06CH11357, and also supported by the National Science Foundation under Grants [CCF-1617488](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1617488), [CCF-1619253](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1619253), [OAC-2003709](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2003709), [OAC-1948447/2034169](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2034169), and [OAC-2003624/2042084](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2042084).
+This research was supported by the U.S. Department of Energy, Office of Science, Advanced Scientific Computing Research (ASCR), under contracts DE-AC02-06CH11357. This work was also supported by the National Science Foundation (Grant Nos. 2003709, 2303064, 2104023, 2247080, 2247060, 2312673, 2311875, and 2311876). We also acknowledge the computing resources provided by Argonne Leadership Computing Facility (ALCF) and Advanced Cyberinfrastructure Coordination Ecosystem—Purdue Anvil through Services & Support (ACCESS).
 
 ![acknowledgement](https://user-images.githubusercontent.com/10354752/196348936-f0909251-1c2f-4c53-b599-08642dcc2089.png)
