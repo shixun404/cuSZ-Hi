@@ -49,7 +49,7 @@ pszerror psz_decompress_init(pszcompressor* comp, pszheader* header);
 
 pszerror psz_decompress(
     pszcompressor* comp, pszout compressed, size_t const comp_len,
-    void* decompressed, pszlen const decomp_len, void* record, void* stream);
+    void* decompressed, void* outlier_tmp, pszlen const decomp_len, void* record, void* stream);
 
 #endif
 

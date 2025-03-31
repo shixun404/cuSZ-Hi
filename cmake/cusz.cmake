@@ -127,9 +127,25 @@ target_link_libraries(pszcomp_cu PUBLIC pszcompile_settings pszkernel_cu
 add_library(psztestframe_cu src/pipeline/testframe.cc)
 target_link_libraries(psztestframe_cu PUBLIC pszcomp_cu pszmem pszutils_seq)
 
+add_library(lc src/lc/comp-tcms.cu src/lc/decomp-tcms.cu 
+            src/lc/comp-bitr.cu src/lc/decomp-bitr.cu
+            src/lc/comp-rtr.cu src/lc/decomp-rtr.cu)
+target_compile_options(lc
+  PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+      -O3
+      -arch=sm_89
+      -arch=sm_80
+      -fmad=false>
+    $<$<COMPILE_LANGUAGE:CXX>:
+      -O3
+      -march=native
+      -mno-fma>)
+target_link_libraries(lc PUBLIC pszcompile_settings CUDA::cudart)
+
 add_library(cusz src/cusz_lib.cc)
 target_link_libraries(cusz PUBLIC pszcomp_cu pszhf_cu pszspv_cu pszstat_seq
-                                  pszutils_seq pszmem)
+                                  pszutils_seq pszmem lc)
 
 
 add_executable(cusz-bin src/cli_psz.cc)
@@ -160,6 +176,7 @@ install(TARGETS pszhfbook_seq EXPORT CUSZTargets LIBRARY DESTINATION ${CMAKE_INS
 install(TARGETS pszhf_cu EXPORT CUSZTargets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(TARGETS pszcomp_cu EXPORT CUSZTargets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(TARGETS psztestframe_cu EXPORT CUSZTargets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS lc EXPORT CUSZTargets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(TARGETS cusz EXPORT CUSZTargets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(TARGETS cusz-bin EXPORT CUSZTargets)
 if(PSZ_RESEARCH_HUFFBK_CUDA)

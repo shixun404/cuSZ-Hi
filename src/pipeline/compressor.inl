@@ -27,6 +27,7 @@
 #include "port.hh"
 #include "utils/config.hh"
 #include "utils/err.hh"
+#include "lc/lc.h"
 
 #define COR          \
   template <class C> \
@@ -160,10 +161,10 @@ COR::compress_encode(pszctx* ctx, void* stream)
   {
     codec->build_codebook(mem->ht, booklen, stream);
     // [TODO] CR estimation must be after building codebook; need a flag.
-    if (ctx->report_cr_est) {
-      auto overhead = spline_in_use() ? sizeof(T) * mem->ac->len() : 0;
-      codec->calculate_CR(mem->e, sizeof(T), overhead);
-    }
+    // if (ctx->report_cr_est) {
+    //   auto overhead = spline_in_use() ? sizeof(T) * mem->ac->len() : 0;
+    //   codec->calculate_CR(mem->e, sizeof(T), overhead);
+    // }
     if (spline_in_use()) { PSZDBG_LOG("codebook: done"); }
     // if (spline_in_use()){PSZSANITIZE_HIST_BK(mem->ht->hptr(),
     // codec->bk4->hptr(), booklen);}
@@ -186,6 +187,7 @@ COR::compress_update_header(pszctx* ctx, void* stream)
   header.pred_type = ctx->pred_type;
   header.dtype = PszType<T>::type;
   header.intp_param=ctx->intp_param;
+  header.with_huffman = ctx->use_huffman;
 
   // TODO no need to copy header to device
 #if defined(PSZ_USE_CUDA) || defined(PSZ_USE_HIP)
@@ -202,11 +204,22 @@ COR::compress_update_header(pszctx* ctx, void* stream)
   return this;
 }
 
+COR::compress_tcms(pszctx* ctx, void* stream)
+{
+  auto spline_in_use = [&]() { return ctx->pred_type == Spline; };
+
+  /* TCMS lossless compression */
+  TCMS_COMPRESS(mem->ectrl(), len, &comp_tcms_out, &comp_tcms_outlen, &time_tcms, stream);
+  if (spline_in_use()) { PSZDBG_LOG("TCMS: done"); }
+  
+  return this;
+}
+
 COR::compress_wrapup(BYTE** out, szt* outlen)
 {
   /* output of this function */
   *out = mem->_compressed->dptr();
-  *outlen = psz_utils::filesize(&header);
+  *outlen = header.entry[Header::END+1];
   mem->_compressed->m->len = *outlen;
   mem->_compressed->m->bytes = *outlen;
 
@@ -220,8 +233,13 @@ COR::compress(pszctx* ctx, T* in, BYTE** out, size_t* outlen, void* stream)
   PSZSANITIZE_PSZCTX(ctx);
 
   compress_predict(ctx, in, stream);
-  compress_histogram(ctx, stream);
-  compress_encode(ctx, stream);
+  if (ctx->use_huffman) {
+    compress_histogram(ctx, stream);
+    compress_encode(ctx, stream);
+  }
+  else {
+    compress_tcms(ctx, stream);
+  }
   compress_merge(ctx, stream);
   compress_update_header(ctx, stream);
   compress_wrapup(out, outlen);
@@ -263,7 +281,12 @@ try
 
   ////////////////////////////////////////////////////////////////
   nbyte[Header::HEADER] = sizeof(Header);
-  nbyte[Header::VLE] = sizeof(BYTE) * comp_hf_outlen;
+  if (ctx->use_huffman) {
+    nbyte[Header::VLE] = sizeof(BYTE) * comp_hf_outlen;
+  }
+  else {
+    nbyte[Header::VLE] = sizeof(BYTE) * comp_tcms_outlen;
+  }
   nbyte[Header::ANCHOR] = pred_type == Spline ? sizeof(T) * mem->ac->len() : 0;
   nbyte[Header::SPFMT] = (sizeof(T) + sizeof(M)) * splen;
 
@@ -275,7 +298,12 @@ try
 
   // copy anchor
   if (pred_type == Spline) concat_d2d(Header::ANCHOR, mem->anchor(), 0);
-  concat_d2d(Header::VLE, comp_hf_out, 0);
+  if (ctx->use_huffman) {
+    concat_d2d(Header::VLE, comp_hf_out, 0);
+  }
+  else {
+    concat_d2d(Header::VLE, comp_tcms_out, 0);
+  }
 
 #if defined(PSZ_USE_CUDA) || defined(PSZ_USE_HIP)
   CHECK_GPU(GpuMemcpyAsync(
@@ -294,6 +322,19 @@ try
       sizeof(M) * splen);
   /* debug */ queue->wait();
 #endif
+
+  if (ctx->use_huffman) {
+    RTR_COMPRESS((uint8_t*)dst(Header::VLE), nbyte[Header::VLE]+nbyte[Header::ANCHOR]+nbyte[Header::SPFMT], &comp_rtr_out, &comp_rtr_outlen, &time_rtr, stream);
+    CHECK_GPU(GpuMemcpyAsync(dst(Header::VLE), comp_rtr_out, comp_rtr_outlen, GpuMemcpyD2D, (GpuStreamT)stream));
+    CHECK_GPU(GpuStreamSync(stream));
+    header.entry[Header::END+1] = header.entry[Header::VLE] + comp_rtr_outlen;
+  }
+  else{
+    BITR_COMPRESS((uint8_t*)dst(Header::ANCHOR), nbyte[Header::ANCHOR]+nbyte[Header::SPFMT], &comp_bitr_out, &comp_bitr_outlen, &time_bitr, stream);
+    CHECK_GPU(GpuMemcpyAsync(dst(Header::ANCHOR), comp_bitr_out, comp_bitr_outlen, GpuMemcpyD2D, (GpuStreamT)stream));
+    CHECK_GPU(GpuStreamSync(stream));
+    header.entry[Header::END+1] = header.entry[Header::ANCHOR] + comp_bitr_outlen;
+  }
 
   if (spline_in_use()) { PSZDBG_LOG("merge buf: done"); }
 
@@ -342,7 +383,7 @@ COR::clear_buffer()
 }
 
 COR::decompress_predict(
-    pszheader* header, BYTE* in, T* ext_anchor, T* out, uninit_stream_t stream)
+    pszheader* header, BYTE* in, T* ext_anchor, T* out, T* outlier_tmp, uninit_stream_t stream)
 {
   auto access = [&](int FIELD, szt offset_nbyte = 0) {
     return (void*)(in + header->entry[FIELD] + offset_nbyte);
@@ -355,7 +396,7 @@ COR::decompress_predict(
     throw std::runtime_error(
         "[psz::error] One of external in and ext_anchor must be null.");
 
-  auto d_anchor = ext_anchor ? ext_anchor : (T*)access(Header::ANCHOR);
+  auto d_anchor = ext_anchor ? ext_anchor : device_anchor;
   // wire and aliasing
   auto d_space = out;
   auto d_xdata = out;
@@ -378,7 +419,7 @@ COR::decompress_predict(
     // [psz::TODO] throw exception
 
     spline_reconstruct(
-        &anchor, mem->e, mem->xd, eb, radius, intp_param, &time_pred, stream);
+        &anchor, mem->e, mem->xd, outlier_tmp,  eb, radius, intp_param, &time_pred, stream);
 #else
     throw runtime_error(
         "[psz::error] spline_reconstruct not implemented other than CUDA.");
@@ -402,6 +443,15 @@ COR::decompress_decode(pszheader* header, BYTE* in, uninit_stream_t stream)
   return this;
 }
 
+COR::decompress_tcms(pszheader* header, BYTE* in, uninit_stream_t stream)
+{
+  auto access = [&](int FIELD, szt offset_nbyte = 0) {
+    return (void*)(in + header->entry[FIELD] + offset_nbyte);
+  };
+  TCMS_DECOMPRESS((uint8_t*)access(Header::VLE), &mem->e->m->d, &time_tcms);
+  return this;
+}
+
 COR::decompress_scatter(
     pszheader* header, BYTE* in, T* d_space, uninit_stream_t stream)
 {
@@ -409,10 +459,23 @@ COR::decompress_scatter(
     return (void*)(in + header->entry[FIELD] + offset_nbyte);
   };
 
-  // The inputs of components are from `compressed`.
-  auto d_anchor = (T*)access(Header::ANCHOR);
-  auto d_spval = (T*)access(Header::SPFMT);
-  auto d_spidx = (M*)access(Header::SPFMT, header->splen * sizeof(T));
+  void* decompressed_data = nullptr;
+  T* d_spval = nullptr;
+  M* d_spidx = nullptr;
+  if (header->with_huffman) {
+    RTR_DECOMPRESS((uint8_t*)access(Header::VLE), &decompressed_data, &time_rtr);
+    codec->decode((B*)decompressed_data, mem->ectrl(), stream);
+    device_anchor = (T*)((uint8_t*)decompressed_data + header->entry[Header::ANCHOR] - header->entry[Header::VLE]);
+    d_spval = (T*)((uint8_t*)decompressed_data + header->entry[Header::SPFMT] - header->entry[Header::VLE]);
+    d_spidx = (M*)((uint8_t*)decompressed_data + header->entry[Header::SPFMT] - header->entry[Header::VLE] + header->splen * sizeof(T));
+  }
+  else{
+    TCMS_DECOMPRESS((uint8_t*)access(Header::VLE), &mem->e->m->d, &time_tcms);
+    BITR_DECOMPRESS((uint8_t*)access(Header::ANCHOR), &decompressed_data, &time_bitr);
+    device_anchor = (T*)decompressed_data;
+    d_spval = (T*)((uint8_t*)decompressed_data + header->entry[Header::SPFMT] - header->entry[Header::ANCHOR]);
+    d_spidx = (M*)((uint8_t*)decompressed_data + header->entry[Header::SPFMT] - header->entry[Header::ANCHOR] + header->splen * sizeof(T));
+  }
 
   psz::spv_scatter_naive<PROPER_GPU_BACKEND, T, M>(
       d_spval, d_spidx, header->splen, d_space, &time_sp, stream);
@@ -420,7 +483,7 @@ COR::decompress_scatter(
   return this;
 }
 
-COR::decompress(pszheader* header, BYTE* in, T* out, void* stream)
+COR::decompress(pszheader* header, BYTE* in, T* out, T* outlier_tmp, void* stream)
 {
   // TODO host having copy of header when compressing
   if (not header) {
@@ -438,10 +501,9 @@ COR::decompress(pszheader* header, BYTE* in, T* out, void* stream)
   // wire and alias
   auto d_space = out, d_xdata = out;
 
-  decompress_scatter(header, in, d_space, stream);
-  decompress_decode(header, in, stream);
-  decompress_predict(header, in, nullptr, d_xdata, stream);
-  decompress_collect_kerneltime();
+  decompress_scatter(header, in, outlier_tmp, stream);
+  decompress_predict(header, in, nullptr, d_xdata, outlier_tmp, stream);
+  decompress_collect_kerneltime(header);
 
   return this;
 }
@@ -465,29 +527,43 @@ COR::export_timerecord(TimeRecord* ext_timerecord)
   return this;
 }
 
-COR::compress_collect_kerneltime()
-{
 #define COLLECT_TIME(NAME, TIME) \
   timerecord.push_back({const_cast<const char*>(NAME), TIME});
 
+COR::compress_collect_kerneltime()
+{
   if (not timerecord.empty()) timerecord.clear();
 
   COLLECT_TIME("predict", time_pred);
-  COLLECT_TIME("histogram", time_hist);
-  COLLECT_TIME("book", codec->time_book());
-  COLLECT_TIME("huff-enc", codec->time_lossless());
-  // COLLECT_TIME("outlier", time_sp);
+  if (header.with_huffman) {
+    COLLECT_TIME("histogram", time_hist);
+    COLLECT_TIME("book", codec->time_book());
+    COLLECT_TIME("huff-enc", codec->time_lossless());
+    COLLECT_TIME("rtr", time_rtr);
+  }
+  else{
+    COLLECT_TIME("tcms", time_tcms);
+    COLLECT_TIME("bitr", time_bitr);
+  }
 
   return this;
 }
 
-COR::decompress_collect_kerneltime()
+COR::decompress_collect_kerneltime(pszheader* header)
 {
   if (not timerecord.empty()) timerecord.clear();
 
   COLLECT_TIME("outlier", time_sp);
-  COLLECT_TIME("huff-dec", codec->time_lossless());
   COLLECT_TIME("predict", time_pred);
+  
+  if (header->with_huffman) {
+    COLLECT_TIME("huff-dec", codec->time_lossless());
+    COLLECT_TIME("rtr", time_rtr);
+  }
+  else{
+    COLLECT_TIME("tcms", time_tcms);
+    COLLECT_TIME("bitr", time_bitr);
+  }
 
   return this;
 }

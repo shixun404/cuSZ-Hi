@@ -22,6 +22,7 @@
 #include "dryrun.hh"
 #include "mem.hh"
 #include "tehm.hh"
+#include "lc/lc.h"
 #if defined(PSZ_USE_CUDA) || defined(PSZ_USE_HIP)
 #include "utils/analyzer.hh"
 #endif
@@ -176,9 +177,12 @@ class CLI {
     auto header = new psz_header;
     memcpy(header, compressed->hptr(), sizeof(psz_header));
     auto len = psz_utils::uncompressed_len(header);
+    ctx->use_huffman = header->with_huffman;
 
     auto decompressed = new pszmem_cxx<T>(len, 1, 1, "decompressed");
+    auto outlier_tmp = new pszmem_cxx<T>(len, 1, 1, "outlier_tmp");
     decompressed->control({MallocHost, Malloc});
+    outlier_tmp->control({MallocHost, Malloc});
 
     auto original = new pszmem_cxx<T>(len, 1, 1, "original-cmp");
 
@@ -191,7 +195,7 @@ class CLI {
     
     psz_decompress(
         compressor, compressed->dptr(), psz_utils::filesize(header),
-        decompressed->dptr(), decomp_len, (void*)&timerecord, stream);
+        decompressed->dptr(), outlier_tmp->dptr(), decomp_len, (void*)&timerecord, stream);
 
     if (ctx->report_time)
       psz::TimeRecordViewer::view_decompression(
