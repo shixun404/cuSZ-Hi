@@ -57,13 +57,25 @@ class Compressor {
   // external codec that has standalone internals
   Codec* codec;
 
-  float time_pred, time_hist, time_sp;
+  float time_pred, time_hist, time_sp, time_tcms, time_bitr, time_rtr;
 
   size_t len;
   int splen;
+  int compressed_len_rre1;
 
   BYTE* comp_hf_out{nullptr};
   size_t comp_hf_outlen{0};
+
+  BYTE* comp_tcms_out{nullptr};
+  size_t comp_tcms_outlen{0};
+
+  BYTE* comp_bitr_out{nullptr};
+  size_t comp_bitr_outlen{0};
+
+  BYTE* comp_rtr_out{nullptr};
+  size_t comp_rtr_outlen{0};
+
+  T* device_anchor{nullptr};
 
   // configs
   float outlier_density{0.2};
@@ -87,14 +99,16 @@ class Compressor {
   Compressor* compress_encode(pszctx*, uninit_stream_t);
   Compressor* compress_merge(pszctx*, void*);
   Compressor* compress_update_header(pszctx*, uninit_stream_t);
+  Compressor* compress_tcms(pszctx*, uninit_stream_t);
   Compressor* compress_wrapup(BYTE** out, szt* outlen);
   Compressor* compress_collect_kerneltime();
 
-  Compressor* decompress(pszheader*, BYTE*, T*, uninit_stream_t);
+  Compressor* decompress(pszheader*, BYTE*, T*, T*, uninit_stream_t);
   Compressor* decompress_scatter(pszheader*, BYTE*, T*, uninit_stream_t);
   Compressor* decompress_decode(pszheader*, BYTE*, uninit_stream_t);
-  Compressor* decompress_predict(pszheader*, BYTE*, T*, T*, uninit_stream_t);
-  Compressor* decompress_collect_kerneltime();
+  Compressor* decompress_tcms(pszheader*, BYTE*, uninit_stream_t);
+  Compressor* decompress_predict(pszheader*, BYTE*, T*, T*, T*, uninit_stream_t);
+  Compressor* decompress_collect_kerneltime(pszheader*);
 
   Compressor* clear_buffer();
   Compressor* dump(std::vector<pszmem_dump>, char const*);

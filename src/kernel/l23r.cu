@@ -106,6 +106,8 @@ pszerror psz_comp_l23r(
       T* const data, dim3 const len3, f8 const eb, int const radius, \
       E* const eq, void* _outlier, f4* time_elapsed, void* stream);
 
+INIT(f4, u1, false)
+INIT(f4, u1, true)
 INIT(f4, u4, false)
 INIT(f4, u4, true)
 INIT(f8, u4, false)
