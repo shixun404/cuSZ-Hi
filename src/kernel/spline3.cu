@@ -125,35 +125,48 @@ int spline_construct(
       intp_param.reverse[0]=intp_param.reverse[1]=intp_param.reverse[2]=intp_param.reverse[3]=do_reverse;
     }
     else if (intp_param.auto_tuning==2){
-       CREATE_GPUEVENT_PAIR;
-       START_GPUEVENT_RECORDING(stream);
-      cusz::c_spline_profiling_data_2<T*, SPLINE_DIM_3, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, DEFAULT_BLOCK_SIZE>  //
-        <<<auto_tuning_grid_dim, dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>>(
-            data->dptr(), data->template len3<dim3>(),
-            data->template st3<dim3>(),
-            profiling_errors->dptr());
-      STOP_GPUEVENT_RECORDING(stream);
-      CHECK_GPU(GpuStreamSync(stream));
-      TIME_ELAPSED_GPUEVENT(&att_time);
-      DESTROY_GPUEVENT_PAIR;
-      //profiling_errors->control({D2H});
-      CHECK_GPU(cudaMemcpy(profiling_errors->m->h, profiling_errors->m->d, profiling_errors->m->bytes, cudaMemcpyDeviceToHost));
-      auto errors=profiling_errors->hptr();
-
-      //intp_param.interpolators[0]=(errors[0]>errors[1]);
-      //intp_param.interpolators[1]=(errors[2]>errors[3]);
-      //intp_param.interpolators[2]=(errors[4]>errors[5]);
+      if(l3.z != 1){
+        CREATE_GPUEVENT_PAIR;
+        START_GPUEVENT_RECORDING(stream);
+        cusz::c_spline_profiling_data_2<T*, SPLINE_DIM_3, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, DEFAULT_BLOCK_SIZE>  //
+          <<<auto_tuning_grid_dim, dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>>(
+              data->dptr(), data->template len3<dim3>(),
+              data->template st3<dim3>(),
+              profiling_errors->dptr());
+        STOP_GPUEVENT_RECORDING(stream);
+        CHECK_GPU(GpuStreamSync(stream));
+        TIME_ELAPSED_GPUEVENT(&att_time);
+        DESTROY_GPUEVENT_PAIR;
+        CHECK_GPU(cudaMemcpy(profiling_errors->m->h, profiling_errors->m->d, profiling_errors->m->bytes, cudaMemcpyDeviceToHost));
+        auto errors=profiling_errors->hptr();
       
-     
-      bool do_nat = errors[0] + errors[2] + errors[4] > errors[1] + errors[3] + errors[5];
-      intp_param.use_natural[0] = intp_param.use_natural[1] = intp_param.use_natural[2] = intp_param.use_natural[3] = do_nat;
-      //intp_param.interpolators[0]=(errors[0]>errors[1]);
-      //intp_param.interpolators[1]=(errors[2]>errors[3]);
-      //intp_param.interpolators[2]=(errors[4]>errors[5]);
-      //to revise: cubic spline selection for both axis-wise and global
-       // bool do_reverse=(errors[1]>2*errors[0]);
-        bool do_reverse=(errors[4+do_nat]>3*errors[do_nat]);
-       intp_param.reverse[0]=intp_param.reverse[1]=intp_param.reverse[2]=intp_param.reverse[3]=do_reverse;
+        bool do_nat = errors[0] + errors[2] + errors[4] > errors[1] + errors[3] + errors[5];
+        intp_param.use_natural[0] = intp_param.use_natural[1] = intp_param.use_natural[2] = intp_param.use_natural[3] = do_nat;
+          bool do_reverse=(errors[4+do_nat]>3*errors[do_nat]);
+        intp_param.reverse[0]=intp_param.reverse[1]=intp_param.reverse[2]=intp_param.reverse[3]=do_reverse;
+        }
+        else{
+          CREATE_GPUEVENT_PAIR;
+          START_GPUEVENT_RECORDING(stream);
+          cusz::c_spline_profiling_data_2<T*, SPLINE_DIM_2, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, 1, DEFAULT_BLOCK_SIZE>  //
+            <<<auto_tuning_grid_dim, dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>>(
+                data->dptr(), data->template len3<dim3>(),
+                data->template st3<dim3>(),
+                profiling_errors->dptr());
+          STOP_GPUEVENT_RECORDING(stream);
+          CHECK_GPU(GpuStreamSync(stream));
+          TIME_ELAPSED_GPUEVENT(&att_time);
+          DESTROY_GPUEVENT_PAIR;
+          CHECK_GPU(cudaMemcpy(profiling_errors->m->h, profiling_errors->m->d, profiling_errors->m->bytes, cudaMemcpyDeviceToHost));
+          auto errors=profiling_errors->hptr();
+          bool do_nat = errors[0] + errors[2]> errors[1] + errors[3];
+          intp_param.use_natural[0] = intp_param.use_natural[1] = intp_param.use_natural[2] = intp_param.use_natural[3] = do_nat;
+          intp_param.use_natural[4] = intp_param.use_natural[5] = do_nat;
+          bool do_reverse=(errors[2+do_nat]>2*errors[do_nat]);
+          intp_param.reverse[0]=intp_param.reverse[1]=intp_param.reverse[2]=intp_param.reverse[3]=do_reverse;
+          intp_param.reverse[4]=intp_param.reverse[5]=do_reverse;
+          intp_param.use_md[0] = intp_param.use_md[1] = intp_param.use_md[2] = intp_param.use_md[3] = intp_param.use_md[4] = intp_param.use_md[5] = false;
+        }
     }
     else{
       int S_STRIDE;

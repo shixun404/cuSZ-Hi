@@ -534,13 +534,25 @@ __device__ void global2shmem_profiling_data_2(T1* data, DIM3 data_size, STRIDE3 
 
         auto gid = gx + gy * data_leap.y + gz * data_leap.z;
 
-        if (gx >= 3 and gy >= 3 and gz >= 3 and gx + 3 < data_size.x and gy + 3 < data_size.y and gz + 3 < data_size.z) {
-            s_data[idx] = data[gid];
-            auto factor=factors[offset];
-            s_nx[idx][offset]=data[gid+factor];
-            s_ny[idx][offset]=data[gid+factor*data_leap.y];
-            s_nz[idx][offset]=data[gid+factor*data_leap.z];
+        if CONSTEXPR (SPLINE_DIM == 3){
+            if (gx >= 3 and gy >= 3 and gz >= 3 and gx + 3 < data_size.x and gy + 3 < data_size.y and gz + 3 < data_size.z) {
+                s_data[idx] = data[gid];
+                auto factor=factors[offset];
+                s_nx[idx][offset]=data[gid+factor];
+                s_ny[idx][offset]=data[gid+factor*data_leap.y];
+                s_nz[idx][offset]=data[gid+factor*data_leap.z];
+            }
         }
+
+        if CONSTEXPR (SPLINE_DIM == 2){
+            if (gx >= 3 and gy >= 3 and gx + 3 < data_size.x and gy + 3 < data_size.y) {
+                s_data[idx] = data[gid];
+                auto factor=factors[offset];
+                s_nx[idx][offset]=data[gid+factor];
+                s_ny[idx][offset]=data[gid+factor*data_leap.y];
+            }
+        }
+
     }
     __syncthreads();
 }
@@ -1347,53 +1359,88 @@ int PROFILE_NUM_BLOCK_Y = 4,
 int PROFILE_NUM_BLOCK_Z = 4, 
 int  LINEAR_BLOCK_SIZE>
 __device__ void cusz::device_api::auto_tuning_2(volatile T s_data[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z], volatile T s_nx[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4], volatile T s_ny[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4], volatile T s_nz[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4],  volatile T local_errs[6], DIM3  data_size,  T * errs){
- 
-    if(TIX<6)
-        local_errs[TIX]=0;
-    __syncthreads(); 
+    
+    if CONSTEXPR (SPLINE_DIM == 3){
+        if(TIX<6)
+            local_errs[TIX]=0;
+        __syncthreads(); 
 
-    auto point_idx = TIX % (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
-    auto c = TIX / (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
+        auto point_idx = TIX % (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
+        auto c = TIX / (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
 
 
-    bool predicate = c < 6;
-    if(predicate){
+        bool predicate = c < 6;
+        if(predicate){
 
-        T pred=0;
+            T pred=0;
 
-        //auto unit = 1;
-        switch(c){
+            //auto unit = 1;
+            switch(c){
+                    case 0:
+                        pred = (-s_nz[point_idx][0] + 9 * s_nz[point_idx][1] + 9 * s_nz[point_idx][2] - s_nz[point_idx][3]) / 16;
+                        break;
+
+                    case 1:
+                        pred = (-3 * s_nz[point_idx][0] + 23 * s_nz[point_idx][1] + 23* s_nz[point_idx][2] - 3 * s_nz[point_idx][3]) / 40;
+                        break;
+                    case 2:
+                        pred = (-s_ny[point_idx][0] + 9 * s_ny[point_idx][1] + 9 * s_ny[point_idx][2] - s_ny[point_idx][3]) / 16;
+                        break;
+                    case 3:
+                        pred = (-3 * s_ny[point_idx][0] + 23 * s_ny[point_idx][1] + 23 * s_ny[point_idx][2] - 3 * s_ny[point_idx][3]) / 40;
+                        break;
+
+                    case 4:
+                        pred = (-s_nx[point_idx][0] + 9 * s_nx[point_idx][1] + 9 * s_nx[point_idx][2] - s_nx[point_idx][3]) / 16;
+                        break;
+                    case 5:
+                        pred = (-3 * s_nx[point_idx][0] + 23 * s_nx[point_idx][1] + 23 * s_nx[point_idx][2] - 3 * s_nx[point_idx][3]) / 40;
+                        break;
+                    default:
+                    break;
+                }
+            T abs_error=fabs(pred-s_data[point_idx]);
+            atomicAdd(const_cast<T*>(local_errs) + c, abs_error);
+        } 
+        __syncthreads(); 
+        if(TIX<6)
+            errs[TIX]=local_errs[TIX];
+        __syncthreads(); 
+    }
+    
+    if CONSTEXPR (SPLINE_DIM == 3){
+        if(TIX<4)
+            local_errs[TIX]=0;
+        __syncthreads(); 
+        auto point_idx = TIX % (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
+        auto c = TIX / (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
+        bool predicate = c < 4;
+        if(predicate){
+            T pred=0;
+            switch(c){
                 case 0:
-                    pred = (-s_nz[point_idx][0] + 9 * s_nz[point_idx][1] + 9 * s_nz[point_idx][2] - s_nz[point_idx][3]) / 16;
-                    break;
-
-                case 1:
-                    pred = (-3 * s_nz[point_idx][0] + 23 * s_nz[point_idx][1] + 23* s_nz[point_idx][2] - 3 * s_nz[point_idx][3]) / 40;
-                    break;
-                case 2:
                     pred = (-s_ny[point_idx][0] + 9 * s_ny[point_idx][1] + 9 * s_ny[point_idx][2] - s_ny[point_idx][3]) / 16;
                     break;
-                case 3:
+                case 1:
                     pred = (-3 * s_ny[point_idx][0] + 23 * s_ny[point_idx][1] + 23 * s_ny[point_idx][2] - 3 * s_ny[point_idx][3]) / 40;
                     break;
-
-                case 4:
+                case 2:
                     pred = (-s_nx[point_idx][0] + 9 * s_nx[point_idx][1] + 9 * s_nx[point_idx][2] - s_nx[point_idx][3]) / 16;
                     break;
-                case 5:
+                case 3:
                     pred = (-3 * s_nx[point_idx][0] + 23 * s_nx[point_idx][1] + 23 * s_nx[point_idx][2] - 3 * s_nx[point_idx][3]) / 40;
                     break;
                 default:
                 break;
             }
-        T abs_error=fabs(pred-s_data[point_idx]);
-        atomicAdd(const_cast<T*>(local_errs) + c, abs_error);
-    } 
-    __syncthreads(); 
-    if(TIX<6)
-        errs[TIX]=local_errs[TIX];
-    __syncthreads(); 
-       
+            T abs_error=fabs(pred-s_data[point_idx]);
+            atomicAdd(const_cast<T*>(local_errs) + c, abs_error);
+        } 
+        __syncthreads(); 
+        if(TIX<4)
+            errs[TIX]=local_errs[TIX];
+        __syncthreads(); 
+    }       
 }
 
 template<int SPLINE_DIM, int BLOCKSIZE>
