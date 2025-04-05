@@ -158,7 +158,7 @@ int spline_construct(
     else{
       int S_STRIDE;
       if(l3.z == 1) S_STRIDE = 14 * AnchorBlockSizeX;
-      else S_STRIDE = 6 * BLOCK16;
+      else S_STRIDE = 8 * BLOCK16;
 
       cusz::reset_errors<<<dim3(1, 1, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream >>>(profiling_errors->dptr());
 
