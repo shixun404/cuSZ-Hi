@@ -157,16 +157,16 @@ int spline_construct(
     }
     else{
       int S_STRIDE;
-      if(l3.z == 1)S_STRIDE = 6 * AnchorBlockSizeX;
+      if(l3.z == 1) S_STRIDE = 14 * AnchorBlockSizeX;
       else S_STRIDE = 6 * BLOCK16;
 
       cusz::reset_errors<<<dim3(1, 1, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream >>>(profiling_errors->dptr());
 
       auto calc_start_size = [&](auto dim, auto & s_start, auto &s_size, auto BLOCKSIZE) {
           auto mid = dim / 2;
-          auto k = (mid - BLOCKSIZE / 2) / (6 * BLOCKSIZE);  
-          auto t = (dim - BLOCKSIZE / 2 - 1 - mid) / (6 * BLOCKSIZE);
-          s_start = mid - k * (6 * BLOCKSIZE);
+          auto k = (mid - BLOCKSIZE / 2) / S_STRIDE;  
+          auto t = (dim - BLOCKSIZE / 2 - 1 - mid) / S_STRIDE;
+          s_start = mid - k * S_STRIDE;
           s_size = k + t + 1;
       };
 
