@@ -233,7 +233,7 @@ int spline_construct(
           intp_param.reverse[2] = false;
         }
         printf("use_md[2] errors[5]=%f, best_error=%f\n", errors[5], best_error);
-        intp_param.use_md[2] = false; //errors[5] < best_error; 
+        intp_param.use_md[2] = true; //errors[5] < best_error; 
         best_error = fmin(errors[5],best_error);
         best_ave_pre_error[2] = best_error / (calcnum(2) * block_num);
 
