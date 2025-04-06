@@ -534,13 +534,25 @@ __device__ void global2shmem_profiling_data_2(T1* data, DIM3 data_size, STRIDE3 
 
         auto gid = gx + gy * data_leap.y + gz * data_leap.z;
 
-        if (gx >= 3 and gy >= 3 and gz >= 3 and gx + 3 < data_size.x and gy + 3 < data_size.y and gz + 3 < data_size.z) {
-            s_data[idx] = data[gid];
-            auto factor=factors[offset];
-            s_nx[idx][offset]=data[gid+factor];
-            s_ny[idx][offset]=data[gid+factor*data_leap.y];
-            s_nz[idx][offset]=data[gid+factor*data_leap.z];
+        if CONSTEXPR (SPLINE_DIM == 3){
+            if (gx >= 3 and gy >= 3 and gz >= 3 and gx + 3 < data_size.x and gy + 3 < data_size.y and gz + 3 < data_size.z) {
+                s_data[idx] = data[gid];
+                auto factor=factors[offset];
+                s_nx[idx][offset]=data[gid+factor];
+                s_ny[idx][offset]=data[gid+factor*data_leap.y];
+                s_nz[idx][offset]=data[gid+factor*data_leap.z];
+            }
         }
+
+        if CONSTEXPR (SPLINE_DIM == 2){
+            if (gx >= 3 and gy >= 3 and gx + 3 < data_size.x and gy + 3 < data_size.y) {
+                s_data[idx] = data[gid];
+                auto factor=factors[offset];
+                s_nx[idx][offset]=data[gid+factor];
+                s_ny[idx][offset]=data[gid+factor*data_leap.y];
+            }
+        }
+
     }
     __syncthreads();
 }
@@ -750,7 +762,7 @@ __forceinline__ __device__ void interpolate_stage(
             auto right_bound = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
             auto x_size = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
             auto y_size = AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2);
-            auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
+            // auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
             int p1 = -1, p2 = 9, p3 = 9, p4 = -1, p5 = 16;
             if(interpolator==0){
                 p1 = -3, p2 = 23, p3 = 23, p4 = -3, p5 = 40;
@@ -802,7 +814,6 @@ __forceinline__ __device__ void interpolate_stage(
                 s_id[3] = x_size * y_size * z + x_size * id_[3] + x;
             }
 
-            T1 tmp_[4];
         
             bool case1 = (input_BI != input_GD - 1);
             bool case2 = (input_x >= 3 * unit);
@@ -941,7 +952,7 @@ volatile T2 s_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
             auto global_y = BIY * AnchorBlockSizeY * numAnchorBlockY + y;
             auto global_z = BIZ * AnchorBlockSizeZ * numAnchorBlockZ + z;  
 
-           T1 tmp_z[4], tmp_y[4], tmp_x[4];
+          
            int id_z[4], id_y[4], id_x[4];
            id_z[0] = (z - 3 * unit >= 0) ? z - 3 * unit : 0;
            id_z[1] = (z - unit >= 0) ? z - unit : 0;
@@ -959,6 +970,7 @@ volatile T2 s_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
            id_x[3] = (x + 3 * unit <= AnchorBlockSizeX * numAnchorBlockX) ? x + 3 * unit : 0;
            
             if CONSTEXPR (LINE) {
+                
                 bool I_Y = (y % (2*unit) )> 0; 
                 bool I_Z = (z % (2*unit) )> 0; 
 
@@ -972,7 +984,7 @@ volatile T2 s_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
                 auto right_bound = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
                 auto x_size = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
                 auto y_size = AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2);
-                auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
+                // auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
                 
                 if (I_Z){
                     input_x = z;
@@ -1021,7 +1033,6 @@ volatile T2 s_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
                     s_id[3] = x_size * y_size * z + x_size * id_[3] + x;
                 }
 
-                T1 tmp_[4];
             
                 bool case1 = (input_BI != input_GD - 1);
                 bool case2 = (input_x >= 3 * unit);
@@ -1078,7 +1089,7 @@ volatile T2 s_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
                 int s_id_1[4], s_id_2[4];
                 auto x_size = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
                 auto y_size = AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2);
-                auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
+                // auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
                 if (I_YZ){
                    
                  x_1 = z,BI_1 = BIZ, GD_1 = GDZ, gx_1 = global_z,gs_1 = data_size.z;
@@ -1189,6 +1200,7 @@ volatile T2 s_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
             }
 
             if CONSTEXPR (CUBE) {  //
+                T1 tmp_z[4], tmp_y[4], tmp_x[4];
                 auto interp_z = get_interp_order(z,BIZ,GDZ,global_z,data_size.z);
                 auto interp_y = get_interp_order(y,BIY,GDY,global_y,data_size.y);
                 auto interp_x = get_interp_order(x,BIX,GDX,global_x,data_size.x);
@@ -1347,53 +1359,88 @@ int PROFILE_NUM_BLOCK_Y = 4,
 int PROFILE_NUM_BLOCK_Z = 4, 
 int  LINEAR_BLOCK_SIZE>
 __device__ void cusz::device_api::auto_tuning_2(volatile T s_data[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z], volatile T s_nx[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4], volatile T s_ny[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4], volatile T s_nz[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4],  volatile T local_errs[6], DIM3  data_size,  T * errs){
- 
-    if(TIX<6)
-        local_errs[TIX]=0;
-    __syncthreads(); 
+    
+    if CONSTEXPR (SPLINE_DIM == 3){
+        if(TIX<6)
+            local_errs[TIX]=0;
+        __syncthreads(); 
 
-    auto point_idx = TIX % (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
-    auto c = TIX / (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
+        auto point_idx = TIX % (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
+        auto c = TIX / (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
 
 
-    bool predicate = c < 6;
-    if(predicate){
+        bool predicate = c < 6;
+        if(predicate){
 
-        T pred=0;
+            T pred=0;
 
-        //auto unit = 1;
-        switch(c){
+            //auto unit = 1;
+            switch(c){
+                    case 0:
+                        pred = (-s_nz[point_idx][0] + 9 * s_nz[point_idx][1] + 9 * s_nz[point_idx][2] - s_nz[point_idx][3]) / 16;
+                        break;
+
+                    case 1:
+                        pred = (-3 * s_nz[point_idx][0] + 23 * s_nz[point_idx][1] + 23* s_nz[point_idx][2] - 3 * s_nz[point_idx][3]) / 40;
+                        break;
+                    case 2:
+                        pred = (-s_ny[point_idx][0] + 9 * s_ny[point_idx][1] + 9 * s_ny[point_idx][2] - s_ny[point_idx][3]) / 16;
+                        break;
+                    case 3:
+                        pred = (-3 * s_ny[point_idx][0] + 23 * s_ny[point_idx][1] + 23 * s_ny[point_idx][2] - 3 * s_ny[point_idx][3]) / 40;
+                        break;
+
+                    case 4:
+                        pred = (-s_nx[point_idx][0] + 9 * s_nx[point_idx][1] + 9 * s_nx[point_idx][2] - s_nx[point_idx][3]) / 16;
+                        break;
+                    case 5:
+                        pred = (-3 * s_nx[point_idx][0] + 23 * s_nx[point_idx][1] + 23 * s_nx[point_idx][2] - 3 * s_nx[point_idx][3]) / 40;
+                        break;
+                    default:
+                    break;
+                }
+            T abs_error=fabs(pred-s_data[point_idx]);
+            atomicAdd(const_cast<T*>(local_errs) + c, abs_error);
+        } 
+        __syncthreads(); 
+        if(TIX<6)
+            errs[TIX]=local_errs[TIX];
+        __syncthreads(); 
+    }
+    
+    if CONSTEXPR (SPLINE_DIM == 3){
+        if(TIX<4)
+            local_errs[TIX]=0;
+        __syncthreads(); 
+        auto point_idx = TIX % (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
+        auto c = TIX / (PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z);
+        bool predicate = c < 4;
+        if(predicate){
+            T pred=0;
+            switch(c){
                 case 0:
-                    pred = (-s_nz[point_idx][0] + 9 * s_nz[point_idx][1] + 9 * s_nz[point_idx][2] - s_nz[point_idx][3]) / 16;
-                    break;
-
-                case 1:
-                    pred = (-3 * s_nz[point_idx][0] + 23 * s_nz[point_idx][1] + 23* s_nz[point_idx][2] - 3 * s_nz[point_idx][3]) / 40;
-                    break;
-                case 2:
                     pred = (-s_ny[point_idx][0] + 9 * s_ny[point_idx][1] + 9 * s_ny[point_idx][2] - s_ny[point_idx][3]) / 16;
                     break;
-                case 3:
+                case 1:
                     pred = (-3 * s_ny[point_idx][0] + 23 * s_ny[point_idx][1] + 23 * s_ny[point_idx][2] - 3 * s_ny[point_idx][3]) / 40;
                     break;
-
-                case 4:
+                case 2:
                     pred = (-s_nx[point_idx][0] + 9 * s_nx[point_idx][1] + 9 * s_nx[point_idx][2] - s_nx[point_idx][3]) / 16;
                     break;
-                case 5:
+                case 3:
                     pred = (-3 * s_nx[point_idx][0] + 23 * s_nx[point_idx][1] + 23 * s_nx[point_idx][2] - 3 * s_nx[point_idx][3]) / 40;
                     break;
                 default:
                 break;
             }
-        T abs_error=fabs(pred-s_data[point_idx]);
-        atomicAdd(const_cast<T*>(local_errs) + c, abs_error);
-    } 
-    __syncthreads(); 
-    if(TIX<6)
-        errs[TIX]=local_errs[TIX];
-    __syncthreads(); 
-       
+            T abs_error=fabs(pred-s_data[point_idx]);
+            atomicAdd(const_cast<T*>(local_errs) + c, abs_error);
+        } 
+        __syncthreads(); 
+        if(TIX<4)
+            errs[TIX]=local_errs[TIX];
+        __syncthreads(); 
+    }       
 }
 
 template<int SPLINE_DIM, int BLOCKSIZE>
@@ -1432,7 +1479,7 @@ __device__ std::tuple<int, int, int> xyzmap_line(int _tix, const int UNIT) {
         auto j = (m % Q);
         if(group == 0)
             return std::make_tuple(2 * UNIT * i + UNIT, 2 * UNIT * j, 0);
-        else if (group == 1)
+        else
             return std::make_tuple(2 * UNIT * j, 2 * UNIT * i + UNIT, 0);
     }
 }
@@ -1459,7 +1506,7 @@ __device__ std::tuple<int, int, int> xyzmap_face(int _tix, const int UNIT) {
         auto N = BLOCKSIZE / (UNIT * 2);
         auto L = N * N;
         auto Q = N * N; 
-        auto group = _tix / L ;
+        // auto group = _tix / L ;
         auto m = _tix % L ;
         
         auto i = (m % Q) / N;
@@ -1532,7 +1579,7 @@ __device__ void cusz::device_api::spline_layout_interpolate(
     };
 
     constexpr auto COARSEN          = true;
-    constexpr auto NO_COARSEN       = false;
+    // constexpr auto NO_COARSEN       = false;
     constexpr auto BORDER_INCLUSIVE = true;
     constexpr auto BORDER_EXCLUSIVE = false;
 
@@ -1708,16 +1755,20 @@ __global__ void cusz::c_spline_profiling_data(
  
 
     {
-        __shared__ struct {
-            T data[PROFILE_BLOCK_SIZE_Z * PROFILE_NUM_BLOCK_Z][PROFILE_BLOCK_SIZE_Y * PROFILE_NUM_BLOCK_Y][PROFILE_BLOCK_SIZE_X * PROFILE_NUM_BLOCK_X];
-            T local_errs[2];
-           // T global_errs[6];
-        } shmem;
-        c_reset_scratch_profiling_data<T, SPLINE_DIM, PROFILE_BLOCK_SIZE_X, PROFILE_BLOCK_SIZE_Y, PROFILE_BLOCK_SIZE_Z, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(shmem.data, 0.0);
         
-        global2shmem_profiling_data<T, T, PROFILE_BLOCK_SIZE_X, PROFILE_BLOCK_SIZE_Y, PROFILE_BLOCK_SIZE_Z, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(data, data_size, data_leap, shmem.data);
+        __shared__    T shmem_data[PROFILE_BLOCK_SIZE_Z * PROFILE_NUM_BLOCK_Z][PROFILE_BLOCK_SIZE_Y * PROFILE_NUM_BLOCK_Y][PROFILE_BLOCK_SIZE_X * PROFILE_NUM_BLOCK_X];
+        __shared__    T shmem_local_errs[2];
+           
+        // __shared__ struct {
+        //     T data[PROFILE_BLOCK_SIZE_Z * PROFILE_NUM_BLOCK_Z][PROFILE_BLOCK_SIZE_Y * PROFILE_NUM_BLOCK_Y][PROFILE_BLOCK_SIZE_X * PROFILE_NUM_BLOCK_X];
+        //     T local_errs[2];
+        //    // T global_errs[6];
+        // } shmem;
+        c_reset_scratch_profiling_data<T, SPLINE_DIM, PROFILE_BLOCK_SIZE_X, PROFILE_BLOCK_SIZE_Y, PROFILE_BLOCK_SIZE_Z, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(shmem_data, 0.0);
+        
+        global2shmem_profiling_data<T, T, PROFILE_BLOCK_SIZE_X, PROFILE_BLOCK_SIZE_Y, PROFILE_BLOCK_SIZE_Z, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(data, data_size, data_leap, shmem_data);
 
-        cusz::device_api::auto_tuning<T, SPLINE_DIM, PROFILE_BLOCK_SIZE_X, PROFILE_BLOCK_SIZE_Y, PROFILE_BLOCK_SIZE_Z, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(shmem.data, shmem.local_errs, data_size, errors);
+        cusz::device_api::auto_tuning<T, SPLINE_DIM, PROFILE_BLOCK_SIZE_X, PROFILE_BLOCK_SIZE_Y, PROFILE_BLOCK_SIZE_Z, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(shmem_data, shmem_local_errs, data_size, errors);
 
     }
 }
@@ -1734,23 +1785,31 @@ __global__ void cusz::c_spline_profiling_data_2(
  
 
     {
-        __shared__ struct {
-            T data[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z];
-            T neighbor_x [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
-            T neighbor_y [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
-            T neighbor_z [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
-            T local_errs[6];
+        
+        __shared__ T shmem_data[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z];
+        __shared__ T shmem_neighbor_x [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
+        __shared__ T shmem_neighbor_y [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
+        __shared__ T shmem_neighbor_z [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
+        __shared__ T shmem_local_errs[6];
            // T global_errs[6];
-        } shmem;
+        
+        // __shared__ struct {
+        //     T data[PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z];
+        //     T neighbor_x [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
+        //     T neighbor_y [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
+        //     T neighbor_z [PROFILE_NUM_BLOCK_X * PROFILE_NUM_BLOCK_Y * PROFILE_NUM_BLOCK_Z][4];
+        //     T local_errs[6];
+        //    // T global_errs[6];
+        // } shmem;
 
 
-        c_reset_scratch_profiling_data_2<T, SPLINE_DIM, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(shmem.data, shmem.neighbor_x, shmem.neighbor_y, shmem.neighbor_z,0.0);
-        global2shmem_profiling_data_2<T, T, SPLINE_DIM, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(data, data_size, data_leap,shmem.data, shmem.neighbor_x, shmem.neighbor_y, shmem.neighbor_z);
+        c_reset_scratch_profiling_data_2<T, SPLINE_DIM, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(shmem_data, shmem_neighbor_x, shmem_neighbor_y, shmem_neighbor_z,0.0);
+        global2shmem_profiling_data_2<T, T, SPLINE_DIM, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(data, data_size, data_leap,shmem_data, shmem_neighbor_x, shmem_neighbor_y, shmem_neighbor_z);
 
         if (TIX < 6 and BIX==0 and BIY==0 and BIZ==0) errors[TIX] = 0.0;//risky
 
         cusz::device_api::auto_tuning_2<T, SPLINE_DIM, PROFILE_NUM_BLOCK_X, PROFILE_NUM_BLOCK_Y, PROFILE_NUM_BLOCK_Z, LINEAR_BLOCK_SIZE>(
-            shmem.data, shmem.neighbor_x, shmem.neighbor_y, shmem.neighbor_z, shmem.local_errs, data_size, errors);
+            shmem_data, shmem_neighbor_x, shmem_neighbor_y, shmem_neighbor_z, shmem_local_errs, data_size, errors);
 
         
     }
@@ -1804,29 +1863,29 @@ __global__ void cusz::c_spline_infprecis_data(
     using E = typename std::remove_pointer<EITER>::type;
 
     {
-        __shared__ struct {
-            T data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
+        // __shared__ struct {
+            __shared__ T shmem_data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
              [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
              [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
-            T ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
+             __shared__ T shmem_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
                     [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
                     [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
-            STRIDE3 grid_leaps[LEVEL + 1];
-            size_t prefix_nums[LEVEL + 1];
-        } shmem;
+                __shared__ STRIDE3 shmem_grid_leaps[LEVEL + 1];
+                __shared__ size_t shmem_prefix_nums[LEVEL + 1];
+        // } shmem;
 
    
-        pre_compute<LEVEL>(ectrl_size, shmem.grid_leaps, shmem.prefix_nums);
+        pre_compute<LEVEL>(ectrl_size, shmem_grid_leaps, shmem_prefix_nums);
 
-        c_reset_scratch_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem.data, shmem.ectrl, radius);
+        c_reset_scratch_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem_data, shmem_ectrl, radius);
 
-        global2shmem_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(data, data_size, data_leap, shmem.data);
+        global2shmem_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(data, data_size, data_leap, shmem_data);
 
         c_gather_anchor<T, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ>(data, data_size, data_leap, anchor, anchor_leap);
         cusz::device_api::spline_layout_interpolate<T, T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_COMPR, false>(
-            shmem.data, shmem.ectrl, data_size, eb_r, ebx2, radius, intp_param);
+            shmem_data, shmem_ectrl, data_size, eb_r, ebx2, radius, intp_param);
 
-        shmem2global_data_with_compaction<T, E, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY,  numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem.ectrl, ectrl, ectrl_size, ectrl_leap, radius, shmem.grid_leaps,shmem.prefix_nums, compact_val, compact_idx, compact_num);
+        shmem2global_data_with_compaction<T, E, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY,  numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem_ectrl, ectrl, ectrl_size, ectrl_leap, radius, shmem_grid_leaps,shmem_prefix_nums, compact_val, compact_idx, compact_num);
     }
 }
 
@@ -1861,25 +1920,34 @@ __global__ void cusz::x_spline_infprecis_data(
     using E = typename std::remove_pointer<EITER>::type;
     using T = typename std::remove_pointer<TITER>::type;
 
-    __shared__ struct {
-        T data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
-        [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
-        [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
-        T ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
-        [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
-        [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
-        STRIDE3 grid_leaps[LEVEL + 1];
-        size_t prefix_nums[LEVEL + 1];
-    } shmem;
+    // __shared__ struct {
+    //     T data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
+    //     [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
+    //     [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
+    //     T ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
+    //     [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
+    //     [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
+    //     STRIDE3 grid_leaps[LEVEL + 1];
+    //     size_t prefix_nums[LEVEL + 1];
+    // } shmem;
 
-    pre_compute<LEVEL>(ectrl_size, shmem.grid_leaps, shmem.prefix_nums);
+    __shared__ T shmem_data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
+    [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
+    [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
+    __shared__ T shmem_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
+           [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
+           [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
+    __shared__ STRIDE3 shmem_grid_leaps[LEVEL + 1];
+    __shared__ size_t shmem_prefix_nums[LEVEL + 1];
 
-    x_reset_scratch_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem.data, shmem.ectrl, anchor, anchor_size, anchor_leap);
-    global2shmem_fuse<T, E, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(ectrl, ectrl_size, ectrl_leap, outlier_tmp, shmem.ectrl, shmem.grid_leaps, shmem.prefix_nums);
+    pre_compute<LEVEL>(ectrl_size, shmem_grid_leaps, shmem_prefix_nums);
+
+    x_reset_scratch_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem_data, shmem_ectrl, anchor, anchor_size, anchor_leap);
+    global2shmem_fuse<T, E, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(ectrl, ectrl_size, ectrl_leap, outlier_tmp, shmem_ectrl, shmem_grid_leaps, shmem_prefix_nums);
 
     cusz::device_api::spline_layout_interpolate<T, T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_DECOMPR, false>(
-        shmem.data, shmem.ectrl, data_size, eb_r, ebx2, radius, intp_param);
-    shmem2global_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem.data, data, data_size, data_leap);
+        shmem_data, shmem_ectrl, data_size, eb_r, ebx2, radius, intp_param);
+    shmem2global_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem_data, data, data_size, data_leap);
 }
 
 
@@ -2053,14 +2121,14 @@ __forceinline__ __device__ void interpolate_stage_att(
 
             auto global_x=global_starts.x+x, global_y=global_starts.y+y, global_z=global_starts.z+z;
             auto input_x = x;
-            auto input_BI = BIX;
-            auto input_GD = GDX;
+            // auto input_BI = BIX;
+            // auto input_GD = GDX;
             auto input_gx = global_x;
             auto input_gs = data_size.x;
             auto right_bound = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
             auto x_size = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
             auto y_size = AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2);
-            auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
+            // auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
             int global_start_ = global_starts.x;
             int p1 = -1, p2 = 9, p3 = 9, p4 = -1, p5 = 16;
             if(interpolator==0){
@@ -2068,8 +2136,8 @@ __forceinline__ __device__ void interpolate_stage_att(
            }
            if CONSTEXPR (BLUE){
                input_x = z;
-               input_BI = BIZ;
-               input_GD = GDZ;
+            //    input_BI = BIZ;
+            //    input_GD = GDZ;
                input_gx = global_z;
                input_gs = data_size.z;
                global_start_ = global_starts.z;
@@ -2077,8 +2145,8 @@ __forceinline__ __device__ void interpolate_stage_att(
            }
            if CONSTEXPR (YELLOW){
                input_x = y;
-               input_BI = BIY;
-               input_GD = GDY;
+            //    input_BI = BIY;
+            //    input_GD = GDY;
                input_gx = global_y;
                input_gs = data_size.y;
                global_start_ = global_starts.y;
@@ -2115,7 +2183,6 @@ __forceinline__ __device__ void interpolate_stage_att(
             s_id[3] = x_size * y_size * z + x_size * id_[3] + x;
            }
            
-           T tmp_[4];
            
            bool case1 = (global_start_ + AnchorBlockSizeX * numAnchorBlockX < input_gs);
            bool case2 = (input_x >= 3 * unit);
@@ -2238,7 +2305,7 @@ __forceinline__ __device__ void interpolate_stage_md_att(
             T pred = 0;
 
             auto global_x=global_starts.x+x, global_y=global_starts.y+y, global_z=global_starts.z+z;
-           T tmp_z[4], tmp_y[4], tmp_x[4];
+        //    T tmp_z[4], tmp_y[4], tmp_x[4];
            int id_z[4], id_y[4], id_x[4];
            id_z[0] = (z - 3 * unit >= 0) ? z - 3 * unit : 0;
            id_z[1] = (z - unit >= 0) ? z - unit : 0;
@@ -2268,7 +2335,7 @@ __forceinline__ __device__ void interpolate_stage_md_att(
                 auto right_bound = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
                 auto x_size = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
                 auto y_size = AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2);
-                auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
+                // auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
                 int global_start_ = global_starts.x;
                 if (I_Z){
                     input_x = z;
@@ -2319,7 +2386,6 @@ __forceinline__ __device__ void interpolate_stage_md_att(
                     s_id[3] = x_size * y_size * z + x_size * id_[3] + x;
                 }
 
-                T tmp_[4];
             
                 bool case1 = (global_start_ + AnchorBlockSizeX * numAnchorBlockX < input_gs);
                 bool case2 = (input_x >= 3 * unit);
@@ -2370,7 +2436,7 @@ __forceinline__ __device__ void interpolate_stage_md_att(
                 int s_id_1[4], s_id_2[4];
                 auto x_size = AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1);
                 auto y_size = AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2);
-                auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
+                // auto z_size = AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3);
                 if (I_YZ){
                    
                  x_1 = z,BI_1 = BIZ, GD_1 = GDZ, gx_1 = global_z,gs_1 = data_size.z;
@@ -2480,6 +2546,7 @@ __forceinline__ __device__ void interpolate_stage_md_att(
             }
 
             if CONSTEXPR (CUBE) {  //
+                T tmp_z[4], tmp_y[4], tmp_x[4];
                 auto interp_z = get_interp_order(z,global_z,data_size.z);
                 auto interp_y = get_interp_order(y,global_y,data_size.y);
                 auto interp_x = get_interp_order(x,global_x,data_size.x);
@@ -2614,9 +2681,9 @@ __device__ void cusz::device_api::spline_layout_interpolate_att(
         return (-3*a+23*b+23*c-3*d) / 40;
     };
     constexpr auto COARSEN          = true;
-    constexpr auto NO_COARSEN       = false;
+    // constexpr auto NO_COARSEN       = false;
     constexpr auto BORDER_INCLUSIVE = true;
-    constexpr auto BORDER_EXCLUSIVE = false;
+    // constexpr auto BORDER_EXCLUSIVE = false;
 
 
     int unit;
@@ -2807,12 +2874,18 @@ __global__ void cusz::pa_spline_infprecis_data(
 
     {
         // if CONSTEXPR (SPLINE_DIM == 3)
-        __shared__ struct {
-            T data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
-            [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
-            [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
-            T err[6];
-        } shmem;
+        // __shared__ struct {
+        //     T data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
+        //     [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
+        //     [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
+        //     T err[6];
+        // } shmem;
+        
+        __shared__    T shmem_data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
+        [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
+        [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
+        __shared__    T shmem_err[6];
+        
         // if CONSTEXPR (SPLINE_DIM == 2)
         // __shared__ struct {
         //     T data[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
@@ -2824,9 +2897,9 @@ __global__ void cusz::pa_spline_infprecis_data(
         DIM3 global_starts;
         uint8_t level = 0;
         uint8_t unit = 1;
-        pre_compute_att<T, SPLINE_DIM, LEVEL>(sample_starts, sample_block_grid_sizes, sample_strides, global_starts, intp_param, level, unit, shmem.err, workflow);
+        pre_compute_att<T, SPLINE_DIM, LEVEL>(sample_starts, sample_block_grid_sizes, sample_strides, global_starts, intp_param, level, unit, shmem_err, workflow);
         
-        global2shmem_data_att<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ,LINEAR_BLOCK_SIZE>(data, data_size, data_leap, shmem.data,global_starts,unit);
+        global2shmem_data_att<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ,LINEAR_BLOCK_SIZE>(data, data_size, data_leap, shmem_data,global_starts,unit);
         
         if CONSTEXPR (SPLINE_DIM == 3){
             if(workflow){
@@ -2836,63 +2909,63 @@ __global__ void cusz::pa_spline_infprecis_data(
                     intp_param.use_natural[2] = false;
                     intp_param.use_md[3] = false;
                     intp_param.reverse[3] = false;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level3,intp_param,shmem.err);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level3,intp_param,shmem_err);
                     intp_param.reverse[3] = true;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level3,intp_param,shmem.err+1);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level3,intp_param,shmem_err+1);
                     intp_param.use_md[3] = true;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level3,intp_param,shmem.err+2);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level3,intp_param,shmem_err+2);
 
 
                     intp_param.use_md[2] = false;
                     intp_param.reverse[2] = false;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem.err+3);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem_err+3);
                     intp_param.reverse[2] = true;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem.err+4);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem_err+4);
                     intp_param.use_md[2] = true;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem.err+5);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem_err+5);
                     if(TIX<6){
-                        atomicAdd(const_cast<T*>(errors+TIX),shmem.err[TIX]);
+                        atomicAdd(const_cast<T*>(errors+TIX),shmem_err[TIX]);
                     }
                 }
                 else if (level == 1){
                     intp_param.use_md[1] = false;
                     intp_param.reverse[1] = false;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem.err);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem_err);
                     intp_param.reverse[1] = true;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem.err+1);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem_err+1);
                     intp_param.use_md[1] = true;
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem.err+2);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem_err+2);
 
                     if(TIX<3){
-                    atomicAdd(const_cast<T*>(errors + 3 + BIY * 3 + TIX),shmem.err[TIX]);
+                    atomicAdd(const_cast<T*>(errors + 3 + BIY * 3 + TIX),shmem_err[TIX]);
                     }
                 }
                 else{
-                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size, global_starts, eb_r, eb_x2, level, intp_param, shmem.err);
+                    cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size, global_starts, eb_r, eb_x2, level, intp_param, shmem_err);
                     if(TIX==0){
-                        atomicAdd(const_cast<T*>(errors + 9 + BIY), shmem.err[0]);
+                        atomicAdd(const_cast<T*>(errors + 9 + BIY), shmem_err[0]);
                     }
                 }
                 
             }
             else{
-                cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_AB_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem.err);
+                cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_AB_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem_err);
                 if(TIX==0)
-                    atomicAdd(const_cast<T*>(errors+BIY),shmem.err[0]);
+                    atomicAdd(const_cast<T*>(errors+BIY),shmem_err[0]);
             
             }
         }
         if CONSTEXPR (SPLINE_DIM == 2){
             if(workflow){
-                cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem.data, data_size, global_starts, eb_r, eb_x2, level, intp_param, shmem.err);
+                cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_PRED_ATT>(shmem_data, data_size, global_starts, eb_r, eb_x2, level, intp_param, shmem_err);
                 if(TIX==0){
-                    atomicAdd(const_cast<T*>(errors + BIY), shmem.err[0]);
+                    atomicAdd(const_cast<T*>(errors + BIY), shmem_err[0]);
                 }
             }
             else{
-                cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_AB_ATT>(shmem.data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem.err);
+                cusz::device_api::spline_layout_interpolate_att<T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_AB_ATT>(shmem_data, data_size,global_starts,eb_r,eb_x2,level,intp_param,shmem_err);
                 if(TIX==0)
-                    atomicAdd(const_cast<T*>(errors+BIY),shmem.err[0]);
+                    atomicAdd(const_cast<T*>(errors+BIY),shmem_err[0]);
             
             }
         }
