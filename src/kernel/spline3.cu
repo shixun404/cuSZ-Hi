@@ -290,7 +290,7 @@ int spline_construct(
     if (l3.z == 1){
       printf("s_size.x = %d, .y = %d, .z = %d\n", s_size_x, s_size_y, s_size_z);
       printf("l3.x = %d, .y = %d, .z = %d\n", l3.x, l3.y, l3.z);
-      cusz::pa_spline_infprecis_data<T*, float, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 6 * LEVEL, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>> (data->dptr(), data->template len3<dim3>(), data->template st3<dim3>(), dim3(s_start_x, s_start_y, s_start_z), dim3(s_size_x, s_size_y, s_size_z), dim3(S_STRIDE, S_STRIDE, S_STRIDE), eb_r, ebx2, intp_param, profiling_errors->dptr(), true);
+      cusz::pa_spline_infprecis_data<T*, float, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 11, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>> (data->dptr(), data->template len3<dim3>(), data->template st3<dim3>(), dim3(s_start_x, s_start_y, s_start_z), dim3(s_size_x, s_size_y, s_size_z), dim3(S_STRIDE, S_STRIDE, S_STRIDE), eb_r, ebx2, intp_param, profiling_errors->dptr(), true);
         
       STOP_GPUEVENT_RECORDING(stream);
       CHECK_GPU(GpuStreamSync(stream));
@@ -299,23 +299,63 @@ int spline_construct(
       att_time += temp_time;
       CHECK_GPU(cudaMemcpy(profiling_errors->m->h, profiling_errors->m->d, profiling_errors->m->bytes, cudaMemcpyDeviceToHost));
       
+      if(errors[0] > errors[1]){
+        best_error = errors[1];
+        intp_param.reverse[5] = true;
+      }
+      else{
+        best_error = errors[0];
+        intp_param.reverse[5] = false;
+      }
       
-      for(int level = 0; level < LEVEL; ++level){
+      printf("use_md[5] errors[2]=%f, best_error=%f\n", errors[2], best_error);
+      intp_param.use_md[5] = errors[2] < best_error; 
+      best_error = fmin(errors[2],best_error);
+      best_ave_pre_error[5] = best_error / (calcnum(1) * block_num);
+
+      if(errors[3] > errors[4]){
+        best_error = errors[4];
+        intp_param.reverse[4] = true;
+      }
+      else{
+        best_error = errors[3];
+        intp_param.reverse[4] = false;
+      }
+      printf("use_md[4] errors[5]=%f, best_error=%f\n", errors[5], best_error);
+      intp_param.use_md[4] = errors[5] < best_error; 
+      best_error = fmin(errors[5],best_error);
+      best_ave_pre_error[4] = best_error / (calcnum(2) * block_num);
+
+      if(errors[6] > errors[7]){
+        best_error = errors[7];
+        intp_param.reverse[3] = true;
+      }
+      else{
+        best_error = errors[6];
+        intp_param.reverse[3] = false;
+      }
+      printf("use_md[3] errors[8]=%f, best_error=%f\n", errors[8], best_error);
+      intp_param.use_md[3] = errors[8] < best_error; 
+      best_error = fmin(errors[8],best_error);
+      best_ave_pre_error[3] = best_error / (calcnum(4) * block_num);
+
+
+      for(int level = 3; level < LEVEL; ++level){
         printf("level=%d: ", level);
-        best_error = errors[level * 6];
-        best_idx = level * 6; 
+        best_error = errors[level * 6 - 9];
+        best_idx = level * 6 - 9; 
         int level_id = LEVEL - 1 - level;
 
-        for(auto i = level * 6; i < level * 6 + 6; i++){
+        for(auto i = level * 6 - 9; i < level * 6 + 6 - 9; i++){
           printf(" errors[%d]=%.10f", i, errors[i]);
           if(errors[i] < best_error){
             best_error = errors[i];
             best_idx = i;
           }
         }
-        intp_param.use_natural[level_id] = (best_idx % 6) > 2;
-        intp_param.use_md[level_id] = ((best_idx % 6) == 2 or (best_idx % 6) ==  5) ;
-        intp_param.reverse[level_id] = best_idx % 3;
+        intp_param.use_natural[level_id] = ((best_idx + 3) % 6) > 2;
+        intp_param.use_md[level_id] = (((best_idx + 3) % 6) == 2 or ((best_idx + 3) % 6) ==  5) ;
+        intp_param.reverse[level_id] = (best_idx + 3) % 3;
         best_ave_pre_error[level_id]= best_error / (calcnum(1 << level) * block_num);
         printf(" BESTERROR=%f\n", best_ave_pre_error[level_id]);
       }
