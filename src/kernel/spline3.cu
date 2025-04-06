@@ -144,6 +144,7 @@ int spline_construct(
         intp_param.use_natural[0] = intp_param.use_natural[1] = intp_param.use_natural[2] = intp_param.use_natural[3] = do_nat;
           bool do_reverse=(errors[4+do_nat]>3*errors[do_nat]);
         intp_param.reverse[0]=intp_param.reverse[1]=intp_param.reverse[2]=intp_param.reverse[3]=do_reverse;
+        intp_param.use_md[0] = intp_param.use_md[1] = intp_param.use_md[2] = intp_param.use_md[3] = intp_param.use_md[4] = intp_param.use_md[5] = false;
         }
         else{
           CREATE_GPUEVENT_PAIR;
