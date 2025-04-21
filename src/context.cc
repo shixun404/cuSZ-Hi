@@ -173,7 +173,20 @@ void pszctx_parse_control_string(
       ctx->use_gpu_verify = true;
     }
     else if (optmatch({"auto_tuning"})) {
-      ctx->intp_param.auto_tuning = psz_helper::str2int(v);
+      // ctx->intp_param.auto_tuning = psz_helper::str2int(v);
+      if (v == "cr-first") {
+        ctx->intp_param.auto_tuning = 3;
+      } else if (v == "rd-first") {
+        ctx->intp_param.auto_tuning = 6;
+      } else {
+        try {
+          ctx->intp_param.auto_tuning = static_cast<uint8_t>(psz_helper::str2int(v));
+        } catch (...) {
+          std::cerr << "[Error] Invalid auto_tuning value: " << v 
+                    << ". Expected cr-first, rd-first, or an integer.\n";
+          exit(1);
+        }
+      }
     }
     else if (optmatch({"alpha"})) {
       ctx->intp_param.alpha = psz_helper::str2fp(v);
@@ -374,8 +387,22 @@ void pszctx_parse_argv(pszctx* ctx, int const argc, char** const argv)
       }
       else if (optmatch({"-a", "--auto"})) {
         check_next();
-        auto _ = std::stoi(argv[++i]);
-        ctx->intp_param.auto_tuning = (uint8_t)_;
+        // auto _ = std::stoi(argv[++i]);
+        // ctx->intp_param.auto_tuning = (uint8_t)_;
+        std::string mode = argv[++i];
+        if (mode == "cr-first") {
+          ctx->intp_param.auto_tuning = 3;
+        } else if (mode == "rd-first") {
+          ctx->intp_param.auto_tuning = 6;
+        } else {
+          try {
+            ctx->intp_param.auto_tuning = static_cast<uint8_t>(std::stoi(mode));
+          } catch (...) {
+            std::cerr << "[Error] Unknown auto-tuning mode: " << mode 
+                      << ". Supported: cr-first, rd-first, or an integer value.\n";
+            exit(1);
+          }
+        }
       }
       else if (optmatch({"-s", "--scheme"})) {
         check_next();
