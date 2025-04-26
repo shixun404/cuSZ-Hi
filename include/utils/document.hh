@@ -48,7 +48,7 @@ static const char psz_short_doc[] =
     "  z : zip/compress\n"
     "  x : unzip/decompress\n"
     "  r : dryrun\n"
-    "  h : print full-length help document\n"
+    "  h : print full-length help document (not up-to-date)\n"
     "\n"
     "  i file  : path to input datum\n"
     "  t dtype : f32 or fp4 (to be updated)\n"

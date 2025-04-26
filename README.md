@@ -26,16 +26,16 @@ cd cuSZ-Hi/build
 ```
 # Compression
 ```
-./cuszi --report time,cr  -z -t [f32/d64] -m r2r --dim3 [DimX]x[DimY]x[DimZ] -e [REL_ERROR_BOUND] --predictor spline3 -i [input.data] -s [cr/tp];
+./cuszhi --report time,cr  -z -t f32 -m r2r --dim3 [DimX]x[DimY]x[DimZ] -e [REL_ERROR_BOUND] --predictor spline3 -i [input.data] -s [cr/tp];
 ```
 ## Notes
 *  input.data is the binary input file;
-*  -t: f32 (float32 data) or d64 (double precision data);
+*  -t: f32 (float32 data) or d64 (double precision data, under development);
 *  DimX is the fastest dimension;
 *  -s: cr (Huffman-integrated lossless pipeline, slower but higher compression ratio) or tp (Huffman-free lossless pipeline, lower compression ratio but fast);
 *  Add "-a rd-first" if you need better rate-distortion.  
 # Decompression
 ```
-./cuszi --report time -x -i [input.data.cusza] --compare input.data
+./cuszhi --report time -x -i [input.data.cusza] --compare input.data
 ```
 
