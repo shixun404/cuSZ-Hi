@@ -134,8 +134,6 @@ target_compile_options(lc
   PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
       -O3
-      -arch=sm_89
-      -arch=sm_80
       -fmad=false>
     $<$<COMPILE_LANGUAGE:CXX>:
       -O3
