@@ -35,9 +35,9 @@ Please use the corresponding CMAKE_CUDA_ARCHITECTURES for your hardware. For exa
 ## Notes
 *  input.data is the binary input file;
 *  -t: f32 (float32 data) or d64 (double precision data, under development);
-*  DimX is the fastest dimension;
+*  DimX is the fastest dimension, DimZ is the slowest;
 *  -s: cr (Huffman-integrated lossless pipeline, slower but higher compression ratio) or tp (Huffman-free lossless pipeline, lower compression ratio but fast);
-*  Add "-a rd-first" if you need better rate-distortion.  
+*  Add "-a rd-first" if you need better rate-distortion rather than a maximized compression ratio under a fixed error bound.  
 # Decompression
 ```
 ./cuszhi --report time -x -i [input.data.cusza] --compare input.data
