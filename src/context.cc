@@ -593,7 +593,7 @@ void pszctx_validate(pszctx* ctx)
 
 void pszctx_print_document(bool full_document)
 {
-  std::cout << "\n>>>>  cuszi build: ICDE '24 artifacts\n";
+  //std::cout << "\n>>>>  cuszi build: ICDE '24 artifacts\n";
 
   if (full_document)
     // std::cout << psz_helper::doc_format(psz_full_doc) << std::endl;
