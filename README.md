@@ -19,11 +19,15 @@ git clone https://github.com/shixun404/cuSZ-Hi.git
 cmake -S cuSZ-Hi -B cuSZ-Hi/build \  
     -D PSZ_BACKEND=cuda \
     -D PSZ_BUILD_EXAMPLES=off \
-    -D CMAKE_CUDA_ARCHITECTURES="80;89" \
+    -D CMAKE_CUDA_ARCHITECTURES="80" \
     -D CMAKE_BUILD_TYPE=Release
 cmake --build cuSZ-Hi/build -- -j
 cd cuSZ-Hi/build
 ```
+## Notes
+
+Please use the corresponding CMAKE_CUDA_ARCHITECTURES for your hardware. For example, NVIDIA A100 should be 86, NVIDIA RTX 4090/6000 Ada should be 89, and NVIDIA H100 should be 90.
+
 # Compression
 ```
 ./cuszhi --report time,cr  -z -t f32 -m r2r --dim3 [DimX]x[DimY]x[DimZ] -e [REL_ERROR_BOUND] --predictor spline3 -i [input.data] -s [cr/tp];
