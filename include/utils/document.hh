@@ -42,7 +42,7 @@ Format(const std::string& s)
 static const char psz_short_doc[] =
     // "cusz, version [placeholder]\n"
     "\n"
-    "usage: cuszi [-zxrh] [-i file] [-t dtype] [-m mode] [-e eb] [-l x,y,z] [--predictor NAME]"
+    "usage: cuszhi [-zxrh] [-i file] [-t dtype] [-m mode] [-e eb] [-l x,y,z] [--predictor NAME] [-a preference] [-s Lossless_pipeline]"
     "...\n"
     "\n"
     "  z : zip/compress\n"
@@ -56,6 +56,8 @@ static const char psz_short_doc[] =
     "  e eb    : error bound; default 1e-4\n"
     "  l size  : \"-l x\" for 1D; \"-l [X]x[Y]\" for 2D; \"-l [X]x[Y]x[Z]\" for 3D\n"
     "  predictor : (default) spline, lorenzo\n"
+    "  a preference: cr-first (default, better compression ratio) or rd-first (better rate-distortion)\n"
+    "  s Lossless_pipeline: cr (default, high-ratio but slow) or tp (fast but lower CR)\n"
     // "  p pred  : select predictor from \"lorenzo\" and \"spline3d\"\n"
     "\n"
     "  report list: \n"
@@ -65,14 +67,14 @@ static const char psz_short_doc[] =
     "\n"
     "example:\n"
     "   ## using default Spline predictor\n"
-    "   cuszi -t f32 -m r2r -e [ErrorBound] -i [/PATH/TO/DATA] -l [X]x[Y]x[Z] -z --report time\n"
-    "   cuszi -i [/PATH/TO/DATA].cusza -x --report time --compare [/PATH/TO/DATA]\n"
+    "   cuszhi -t f32 -m r2r -e [ErrorBound] -i [/PATH/TO/DATA] -l [X]x[Y]x[Z] -z --report time\n"
+    "   cuszhi -i [/PATH/TO/DATA].cusza -x --report time --compare [/PATH/TO/DATA]\n"
     "\n"
     "   ## using Lorenzo predictor for comparison\n"
-    "   cuszi -t f32 -m r2r -e [ErrorBound] -i [/PATH/TO/DATA] -l [X]x[Y]x[Z] -z --report time -- predictor lorenzo\n"
-    "   cuszi -i [/PATH/TO/DATA].cusza -x --report time --compare [/PATH/TO/DATA]\n";
+    "   cuszhi -t f32 -m r2r -e [ErrorBound] -i [/PATH/TO/DATA] -l [X]x[Y]x[Z] -z --report time -- predictor lorenzo\n"
+    "   cuszhi -i [/PATH/TO/DATA].cusza -x --report time --compare [/PATH/TO/DATA]\n";
 
-static const char psz_full_doc[] =
+static const char psz_full_doc[] = //todo: revise
     "*NAME*\n"
     "        cuSZ: CUDA-Based Error-Bounded Lossy Compressor for Scientific Data\n"
     "        Lowercased \"*cusz*\" is the command.\n"
