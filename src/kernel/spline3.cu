@@ -616,9 +616,9 @@ INIT(f4, u2, f4)
 INIT(f4, u4, f4)
 INIT(f4, f4, f4)
 
-//INIT(f8, u1, f8) //placeholder for double input
-//INIT(f8, u2, f8)
-//INIT(f8, u4, f8)
-//INIT(f8, f4, f8)
+INIT(f8, u1, f8) //placeholder for double input
+INIT(f8, u2, f8)
+INIT(f8, u4, f8)
+INIT(f8, f4, f8)
 #undef INIT
 #undef SETUP
