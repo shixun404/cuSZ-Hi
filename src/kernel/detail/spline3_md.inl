@@ -2348,7 +2348,7 @@ __forceinline__ __device__ void interpolate_stage_md_att(
 
                 pred = 0;
                 auto input_x = x;
-                //auto input_BI = BIX;
+                auto input_BI = BIX;
                 //auto input_GD = GDX;
                 auto input_gx = global_x;
                 auto input_gs = data_size.x;
