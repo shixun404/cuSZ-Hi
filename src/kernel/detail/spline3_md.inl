@@ -1816,7 +1816,7 @@ __global__ void cusz::c_spline_profiling_data_2(
 
 
 template <int LEVEL> __forceinline__ __device__ void pre_compute(DIM3 data_size, STRIDE3 grid_leaps[LEVEL + 1], volatile size_t prefix_nums[LEVEL + 1]){
-    if(TIX==0){
+    //if(TIX==0){
         auto d_size = data_size;
         
         int level = 0;
@@ -1833,7 +1833,7 @@ template <int LEVEL> __forceinline__ __device__ void pre_compute(DIM3 data_size,
             level++;
         }   
         prefix_nums[LEVEL] = 0;
-    }
+    //}
     __syncthreads(); 
 }
 
