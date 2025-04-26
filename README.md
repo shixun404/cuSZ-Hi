@@ -26,7 +26,7 @@ cd cuSZ-Hi/build
 ```
 ## Notes
 
-Please use the corresponding CMAKE_CUDA_ARCHITECTURES for your hardware. For example, NVIDIA A100 should be 86, NVIDIA RTX 4090/6000 Ada should be 89, and NVIDIA H100 should be 90.
+Please use the corresponding CMAKE_CUDA_ARCHITECTURES for your hardware. For example, NVIDIA A100 should be "80", NVIDIA RTX 4090/6000 Ada should be "80;89", and NVIDIA H100 should be "90".
 
 # Compression
 ```
