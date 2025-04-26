@@ -568,7 +568,7 @@ __device__ void global2shmem_fuse(E* ectrl, dim3 ectrl_size, dim3 ectrl_leap, T*
     volatile T s_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
     [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
     [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)],
-    volatile STRIDE3 grid_leaps[LEVEL + 1],volatile size_t prefix_nums[LEVEL + 1])
+    STRIDE3 grid_leaps[LEVEL + 1],volatile size_t prefix_nums[LEVEL + 1])
 {
     
     constexpr auto TOTAL = (AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)) *
@@ -648,7 +648,7 @@ int LINEAR_BLOCK_SIZE = DEFAULT_LINEAR_BLOCK_SIZE>
 __device__ void
 shmem2global_data_with_compaction(volatile T1 s_buf[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
 [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
-[AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)], T2* dram_buf, DIM3 buf_size, STRIDE3 buf_leap, int radius,volatile STRIDE3 grid_leaps[LEVEL + 1],volatile size_t prefix_nums[LEVEL + 1], T1* dram_compactval = nullptr, uint32_t* dram_compactidx = nullptr, uint32_t* dram_compactnum = nullptr)
+[AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)], T2* dram_buf, DIM3 buf_size, STRIDE3 buf_leap, int radius, STRIDE3 grid_leaps[LEVEL + 1],volatile size_t prefix_nums[LEVEL + 1], T1* dram_compactval = nullptr, uint32_t* dram_compactidx = nullptr, uint32_t* dram_compactnum = nullptr)
 {
     auto x_size = AnchorBlockSizeX * numAnchorBlockX + (BIX == GDX - 1) * (SPLINE_DIM >= 1);
     auto y_size = AnchorBlockSizeY * numAnchorBlockY + (BIY == GDY - 1) * (SPLINE_DIM >= 2);
@@ -1815,7 +1815,7 @@ __global__ void cusz::c_spline_profiling_data_2(
 }
 
 
-template <int LEVEL> __forceinline__ __device__ void pre_compute(DIM3 data_size, volatile STRIDE3 grid_leaps[LEVEL + 1], volatile size_t prefix_nums[LEVEL + 1]){
+template <int LEVEL> __forceinline__ __device__ void pre_compute(DIM3 data_size, STRIDE3 grid_leaps[LEVEL + 1], volatile size_t prefix_nums[LEVEL + 1]){
     if(TIX==0){
         auto d_size = data_size;
         
@@ -1869,12 +1869,12 @@ __global__ void cusz::c_spline_infprecis_data(
              __shared__ T shmem_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
                     [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
                     [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
-                __shared__ STRIDE3 shmem_grid_leaps[LEVEL + 1];
+                //__shared__ STRIDE3 shmem_grid_leaps[LEVEL + 1];
                 __shared__ size_t shmem_prefix_nums[LEVEL + 1];
         // } shmem;
 
-   
-        pre_compute<LEVEL>(ectrl_size, shmem_grid_leaps, shmem_prefix_nums);
+        STRIDE3 grid_leaps[LEVEL + 1];
+        pre_compute<LEVEL>(ectrl_size, grid_leaps, shmem_prefix_nums);
 
         c_reset_scratch_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem_data, shmem_ectrl, radius);
 
@@ -1884,7 +1884,7 @@ __global__ void cusz::c_spline_infprecis_data(
         cusz::device_api::spline_layout_interpolate<T, T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_COMPR, false>(
             shmem_data, shmem_ectrl, data_size, eb_r, ebx2, radius, intp_param);
 
-        shmem2global_data_with_compaction<T, E, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY,  numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem_ectrl, ectrl, ectrl_size, ectrl_leap, radius, shmem_grid_leaps,shmem_prefix_nums, compact_val, compact_idx, compact_num);
+        shmem2global_data_with_compaction<T, E, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY,  numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem_ectrl, ectrl, ectrl_size, ectrl_leap, radius, grid_leaps,shmem_prefix_nums, compact_val, compact_idx, compact_num);
     }
 }
 
@@ -1936,13 +1936,13 @@ __global__ void cusz::x_spline_infprecis_data(
     __shared__ T shmem_ectrl[AnchorBlockSizeZ * numAnchorBlockZ + (SPLINE_DIM >= 3)]
            [AnchorBlockSizeY * numAnchorBlockY + (SPLINE_DIM >= 2)]
            [AnchorBlockSizeX * numAnchorBlockX + (SPLINE_DIM >= 1)];
-    __shared__ STRIDE3 shmem_grid_leaps[LEVEL + 1];
+    //__shared__ STRIDE3 shmem_grid_leaps[LEVEL + 1];
     __shared__ size_t shmem_prefix_nums[LEVEL + 1];
-
-    pre_compute<LEVEL>(ectrl_size, shmem_grid_leaps, shmem_prefix_nums);
+    STRIDE3 grid_leaps[LEVEL + 1];
+    pre_compute<LEVEL>(ectrl_size, grid_leaps, shmem_prefix_nums);
 
     x_reset_scratch_data<T, T, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(shmem_data, shmem_ectrl, anchor, anchor_size, anchor_leap);
-    global2shmem_fuse<T, E, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(ectrl, ectrl_size, ectrl_leap, outlier_tmp, shmem_ectrl, shmem_grid_leaps, shmem_prefix_nums);
+    global2shmem_fuse<T, E, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE>(ectrl, ectrl_size, ectrl_leap, outlier_tmp, shmem_ectrl, grid_leaps, shmem_prefix_nums);
 
     cusz::device_api::spline_layout_interpolate<T, T, FP, LEVEL, SPLINE_DIM, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, LINEAR_BLOCK_SIZE, SPLINE3_DECOMPR, false>(
         shmem_data, shmem_ectrl, data_size, eb_r, ebx2, radius, intp_param);
