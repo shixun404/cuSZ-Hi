@@ -567,7 +567,7 @@ int spline_reconstruct(
     auto grid_dim =
     dim3(div(l3.x, AnchorBlockSizeX * numAnchorBlockX ), div(l3.y, AnchorBlockSizeY * numAnchorBlockY ), div(l3.z, AnchorBlockSizeZ * numAnchorBlockZ ));
 
-    cusz::x_spline_infprecis_data<E*, T*, float, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ,
+    cusz::x_spline_infprecis_data<E*, T*, FP, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ,
   numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, DEFAULT_BLOCK_SIZE>   //
       <<<grid_dim, dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>>  //
       (ectrl->dptr(), ectrl->template len3<dim3>(),
@@ -583,7 +583,7 @@ int spline_reconstruct(
     auto grid_dim =
     dim3(div(l3.x, BLOCK16 ), div(l3.y, BLOCK16 ), div(l3.z, BLOCK16 ));
 
-    cusz::x_spline_infprecis_data<E*, T*, float, 4, SPLINE_DIM_3, BLOCK16, BLOCK16, BLOCK16,
+    cusz::x_spline_infprecis_data<E*, T*, FP, 4, SPLINE_DIM_3, BLOCK16, BLOCK16, BLOCK16,
   1, 1, 1, DEFAULT_BLOCK_SIZE>   //
       <<<grid_dim, dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>>  //
       (ectrl->dptr(), ectrl->template len3<dim3>(),
@@ -603,22 +603,22 @@ int spline_reconstruct(
   return 0;
 }
 
-#define INIT(T, E)                                                            \
-  template int spline_construct<T, E>(                                        \
+#define INIT(T, E, FP)                                                            \
+  template int spline_construct<T, E, FP>(                                        \
       pszmem_cxx<T> * data, pszmem_cxx<T> * anchor, pszmem_cxx<E> * ectrl,    \
       void* _outlier, double eb, double rel_eb, uint32_t radius, struct INTERPOLATION_PARAMS &intp_param, float* time, void* stream, pszmem_cxx<T> * profiling_errors); \
-  template int spline_reconstruct<T, E>(                                      \
+  template int spline_reconstruct<T, E, FP>(                                      \
       pszmem_cxx<T> * anchor, pszmem_cxx<E> * ectrl, pszmem_cxx<T> * xdata, T* outlier_tmp,  \
       double eb, uint32_t radius, struct INTERPOLATION_PARAMS intp_param, float* time, void* stream);
 
-INIT(f4, u1)
-INIT(f4, u2)
-INIT(f4, u4)
-INIT(f4, f4)
+INIT(f4, u1, f4)
+INIT(f4, u2, f4)
+INIT(f4, u4, f4)
+INIT(f4, f4, f4)
 
-//INIT(f8, u1) //placeholder for double input
-//INIT(f8, u2)
-//INIT(f8, u4)
-//INIT(f8, f4)
+//INIT(f8, u1, f8) //placeholder for double input
+//INIT(f8, u2, f8)
+//INIT(f8, u4, f8)
+//INIT(f8, f4, f8)
 #undef INIT
 #undef SETUP
