@@ -284,7 +284,7 @@ int spline_construct(
 
         best_ave_pre_error[0]= best_error/(calcnum(8)*block_num);
         
-        printf("BESTERROR: %.4e %.4e %.4e %.4e\n",best_ave_pre_error[3],best_ave_pre_error[2],best_ave_pre_error[1],best_ave_pre_error[0]);
+        //printf("BESTERROR: %.4e %.4e %.4e %.4e\n",best_ave_pre_error[3],best_ave_pre_error[2],best_ave_pre_error[1],best_ave_pre_error[0]);
       }
 
     // if CONSTEXPR (SPLINE_DIM == 2){
