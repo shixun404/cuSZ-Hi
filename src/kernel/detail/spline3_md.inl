@@ -2348,7 +2348,7 @@ __forceinline__ __device__ void interpolate_stage_md_att(
 
                 pred = 0;
                 auto input_x = x;
-                auto input_BI = BIX;
+                //auto input_BI = BIX;
                 //auto input_GD = GDX;
                 auto input_gx = global_x;
                 auto input_gs = data_size.x;
@@ -2359,7 +2359,7 @@ __forceinline__ __device__ void interpolate_stage_md_att(
                 int global_start_ = global_starts.x;
                 if (I_Z){
                     input_x = z;
-                    input_BI = BIZ;
+                    //input_BI = BIZ;
                     //input_GD = GDZ;
                     input_gx = global_z;
                     input_gs = data_size.z;
@@ -2368,7 +2368,7 @@ __forceinline__ __device__ void interpolate_stage_md_att(
                 }
                 else if (I_Y){
                     input_x = y;
-                    input_BI = BIY;
+                    //input_BI = BIY;
                     //input_GD = GDY;
                     input_gx = global_y;
                     input_gs = data_size.y;
