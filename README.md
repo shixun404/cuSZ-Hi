@@ -1,9 +1,9 @@
 <!-- <h3 align="center"><img src="https://user-images.githubusercontent.com/10354752/81179956-05860600-8f70-11ea-8b01-856f29b9e8b2.jpg" width="150"></h3> -->
 
 <h3 align="center">
-SC' 25 Research Paper Snapshot
+Research Paper Snapshot
 <br>
-cuSZ-Hi: Boosting Scientific Error-Bounded Lossy Compression through Optimized Synergistic Lossy-Lossless Orchestration
+cuSZ-Hi
 </h3>
 
 <p align="center">
